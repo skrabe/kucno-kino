@@ -50,7 +50,7 @@ const regularSeries = (today: string): Params => ({
 const movieGenre = (
   id: string,
   name: string,
-  genre: number,
+  genre: number | string,
   minVotes = 400,
   without?: string,
 ): DiscoverCatalog => ({
@@ -182,10 +182,32 @@ export const CATALOGS: CatalogDef[] = [
   },
   { kind: "static", id: "najbolje", type: "movie", name: "Najbolje svih vremena", list: "top-movies" },
   { kind: "static", id: "najbolje", type: "series", name: "Najbolje svih vremena", list: "top-series" },
-  movieGenre("akcija", "Akcija", 28),
-  seriesGenre("kriminalisticke", "Kriminalističke", "80"),
+
+  // Genre rows: the most common genres first, always "Film" then "Serija" under the same name.
+  // (TMDB series genres differ: action is "Action & Adventure", sci-fi is "Sci-Fi & Fantasy", war is "War & Politics".)
   movieGenre("komedija", "Komedija", 35),
   seriesGenre("komedija", "Komedija", "35"),
+  movieGenre("akcija", "Akcija", 28),
+  seriesGenre("akcija", "Akcija", "10759"),
+  movieGenre("kriminalisticki", "Kriminalistički", 80),
+  seriesGenre("kriminalisticke", "Kriminalistički", "80"),
+  movieGenre("drama", "Drama", 18),
+  seriesGenre("drama", "Drama", "18", 300),
+  movieGenre("triler", "Triler i misterij", "53|9648"),
+  seriesGenre("misterij", "Triler i misterij", "9648"),
+  movieGenre("obiteljski", "Za djecu i obitelj", 10751, 300),
+  seriesGenre("djecje", "Za djecu i obitelj", "10762|10751", 50),
+  movieGenre("dokumentarni", "Dokumentarni", 99, 150, "35|10402"),
+  seriesGenre("dokumentarne", "Dokumentarni", "99", 50),
+  movieGenre("scifi", "Znanstvena fantastika", 878),
+  seriesGenre("scifi", "Znanstvena fantastika", "10765"),
+  movieGenre("ratni", "Ratni", 10752, 200),
+  seriesGenre("ratni", "Ratni", "10768", 50),
+  movieGenre("vestern", "Vestern", 37, 150),
+  seriesGenre("vestern", "Vestern", "37", 20),
+
+  // Film-only and series-only rows last: TMDB has no matching genre on the other side.
+  movieGenre("romanticni", "Romantični", 10749, 300),
   {
     kind: "discover",
     id: "klasici",
@@ -199,12 +221,7 @@ export const CATALOGS: CatalogDef[] = [
       "vote_average.gte": "7",
     }),
   },
-  movieGenre("kriminalisticki", "Kriminalistički", 80),
-  movieGenre("triler", "Triler", 53),
-  movieGenre("drama", "Drama", 18),
-  seriesGenre("drama", "Drama", "18", 300),
-  movieGenre("ratni", "Ratni", 10752, 200),
-  movieGenre("vestern", "Vestern", 37, 150),
+  movieGenre("povijesni", "Povijesni", 36, 200),
   {
     kind: "discover",
     id: "mini",
@@ -219,15 +236,6 @@ export const CATALOGS: CatalogDef[] = [
       "vote_average.gte": "6.8",
     }),
   },
-  movieGenre("romanticni", "Romantični", 10749, 300),
-  movieGenre("scifi", "Znanstvena fantastika", 878),
-  seriesGenre("scifi", "Znanstvena fantastika", "10765"),
-  movieGenre("povijesni", "Povijesni", 36, 200),
-  movieGenre("obiteljski", "Za djecu i obitelj", 10751, 300),
-  seriesGenre("djecje", "Za djecu i obitelj", "10762|10751", 50),
-  movieGenre("dokumentarni", "Dokumentarni", 99, 150, "35|10402"),
-  seriesGenre("dokumentarne", "Dokumentarne", "99", 50),
-  seriesGenre("akcija", "Akcija i avantura", "10759"),
 ];
 
 export function findCatalog(type: string, id: string): CatalogDef | undefined {
