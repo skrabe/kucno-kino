@@ -8,6 +8,7 @@ import { landingPage } from "./landing";
 import { buildManifest, SEARCH_ID, VERSION } from "./manifest";
 import { metaHandler } from "./meta";
 import { searchHandler } from "./search";
+import { curate, type TorrentioStream } from "./streams";
 import { Budget, type Env, Tmdb } from "./tmdb";
 
 const CORS = {
@@ -16,8 +17,11 @@ const CORS = {
   "Access-Control-Allow-Headers": "*",
 };
 
-/** Workers Free: 50 subrequests per invocation (fetch + Cache API). Keep a little headroom. */
-const BUDGET = 47;
+/**
+ * Outbound calls allowed per request. The account is on Workers Paid (10,000 subrequests per invocation),
+ * so this is a safety valve against runaway fan-out, not a platform limit. A cold row needs ~25.
+ */
+const BUDGET = 300;
 const HOUR = 3600;
 const DAY = 24 * HOUR;
 
@@ -75,12 +79,12 @@ function isWarm(req: Request, env: Env): boolean {
 /** Edge-cached Stremio resource. A warm-up request (cron) always recomputes and refreshes the entry. */
 async function cached(
   req: Request,
+  keyPath: string,
   ctx: Ctx,
   exec: ExecutionContext,
   compute: () => Promise<Response>,
 ): Promise<Response> {
-  const url = new URL(req.url);
-  const key = new Request(`${CACHE_HOST}${url.pathname}?v=${VERSION}-${ctx.env.CF_VERSION?.id ?? "dev"}`);
+  const key = new Request(`${CACHE_HOST}${keyPath}?v=${VERSION}-${ctx.env.CF_VERSION?.id ?? "dev"}`);
   const cache = caches.default;
   if (!isWarm(req, ctx.env)) {
     ctx.budget.take();
@@ -96,12 +100,37 @@ async function cached(
 }
 
 const ROUTE = /^\/(catalog|meta)\/(movie|series)\/([^/]+?)(?:\/([^/]+?))?\.json$/;
+/** Private prefix /u/<STREAM_KEY>/…: unlocks /curate, used by the stream relay running on the TV box. */
+const PRIVATE = /^\/u\/([A-Za-z0-9_-]{16,})(\/.*)$/;
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 async function handle(req: Request, env: Env, exec: ExecutionContext): Promise<Response> {
   const url = new URL(req.url);
-  const path = url.pathname.replace(/\/{2,}/g, "/");
+  let path = url.pathname.replace(/\/{2,}/g, "/");
+  let base = url.origin;
+  let privileged = false;
+  const priv = PRIVATE.exec(path);
+  if (priv) {
+    if (!env.STREAM_KEY || !timingSafeEqual(priv[1]!, env.STREAM_KEY)) return json({ error: "not found" }, undefined, 404);
+    privileged = true;
+    path = priv[2]!;
+    base = `${url.origin}/u/${priv[1]}`;
+  }
 
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (privileged && path === "/curate" && req.method === "POST") {
+    // The box fetches Torrentio itself (Torrentio rate-limits Cloudflare IPs) and asks us only to
+    // filter, rank and relabel. Keeping the logic here means labels can change without touching the box.
+    const type = url.searchParams.get("type") === "series" ? "series" : "movie";
+    const body = (await req.json().catch(() => ({}))) as { streams?: TorrentioStream[] };
+    return json({ streams: curate(Array.isArray(body.streams) ? body.streams : [], type) });
+  }
   if (req.method !== "GET" && req.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
 
   if (path === "/" || path === "/configure") {
@@ -150,8 +179,8 @@ async function handle(req: Request, env: Env, exec: ExecutionContext): Promise<R
 
   if (resource === "meta") {
     if (!/^tt\d+$/.test(id)) return json({ meta: null }, undefined, 404);
-    return cached(req, ctx, exec, async () => {
-      const r = await metaHandler(ctx, type, id, `${url.origin}/manifest.json`);
+    return cached(req, path, ctx, exec, async () => {
+      const r = await metaHandler(ctx, type, id, `${base}/manifest.json`);
       if (!r) return json({ meta: null }, undefined, 404);
       return json({ meta: r.meta }, r.fallback ? POLICY.fallback : POLICY.meta);
     });
@@ -159,7 +188,7 @@ async function handle(req: Request, env: Env, exec: ExecutionContext): Promise<R
 
   if (id === SEARCH_ID) {
     if (!extra.search) return json({ metas: [] }, POLICY.partial);
-    return cached(req, ctx, exec, async () => {
+    return cached(req, path, ctx, exec, async () => {
       const r = await searchHandler(ctx, type, extra.search!);
       return json({ metas: r.metas }, r.complete ? POLICY.search : POLICY.partial);
     });
@@ -167,7 +196,7 @@ async function handle(req: Request, env: Env, exec: ExecutionContext): Promise<R
 
   const def = findCatalog(type, id);
   if (!def) return json({ metas: [] }, undefined, 404);
-  return cached(req, ctx, exec, async () => {
+  return cached(req, path, ctx, exec, async () => {
     try {
       const r = await catalogHandler(ctx, def, extra);
       return json({ metas: r.metas }, r.complete ? POLICY.catalog : POLICY.partial);

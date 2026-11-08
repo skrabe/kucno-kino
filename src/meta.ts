@@ -141,7 +141,8 @@ export async function metaHandler(ctx: Ctx, type: MediaType, imdb: string, manif
   const description = pickOverview(d, ctx.chain);
   const poster = bestImage(d.images?.posters, [...LOCAL_LANGS, "en"])?.file_path ?? d.poster_path;
   const background = bestImage(d.images?.backdrops, [null, "xx", "en"])?.file_path ?? d.backdrop_path;
-  const logo = bestImage(d.images?.logos, [...LOCAL_LANGS, "en"]);
+  // Only a logo in our language: an English logo would put the English title back on the page.
+  const logo = bestImage(d.images?.logos, LOCAL_LANGS);
   const trailer = bestTrailer(d.videos?.results);
   const crew = d.credits?.crew ?? [];
   const directors = [...new Set(crew.filter((c) => c.job === "Director").map((c) => c.name))];

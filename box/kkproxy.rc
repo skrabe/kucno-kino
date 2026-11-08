@@ -1,0 +1,8 @@
+# Kućno kino stream relay: local Stremio add-on on 127.0.0.1:11471
+service kkproxy /vendor/bin/kkproxy -config /data/kk/config.json
+    class late_start
+    user root
+    group root inet
+
+on property:sys.boot_completed=1
+    start kkproxy

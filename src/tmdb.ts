@@ -10,6 +10,8 @@ export interface Env {
   CF_VERSION?: { id: string };
   /** Shared secret for the cron's warm-up requests (header x-warm). */
   WARM_KEY?: string;
+  /** Path secret for /u/<key>/curate (called by the stream relay on the TV box). */
+  STREAM_KEY?: string;
 }
 
 export class BudgetExceeded extends Error {
