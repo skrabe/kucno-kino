@@ -83,7 +83,7 @@ pnpm test && pnpm typecheck
 node scripts/smoke.mjs http://localhost:8787
 ```
 
-**Deploy:** `pnpm deploy`. The worker needs two secrets:
+**Deploy:** `pnpm deploy`. The worker needs three secrets:
 
 - `TMDB_TOKEN`
 - `WARM_KEY` (any random string)
