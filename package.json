@@ -1,0 +1,30 @@
+{
+  "name": "kucno-kino",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stremio add-on: live Netflix-style rows with Croatian/Bosnian/Serbian titles and descriptions from TMDB.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:top": "node scripts/build-top.mjs",
+    "build:logo": "node scripts/logo.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261108.1",
+    "sharp": "^0.35.5",
+    "typescript": "^7.0.2",
+    "vitest": "5.1.0",
+    "wrangler": "4.158.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "sharp"
+    ]
+  }
+}

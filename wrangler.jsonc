@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kucno-kino",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "rules": [{ "type": "Data", "globs": ["**/*.png"], "fallthrough": false }],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "kucno-kino", "database_id": "35d215b2-cba7-4459-9cf0-25f7a627803c" }
+  ],
+  // The cron calls this same Worker per catalog so every row gets its own subrequest budget.
+  // Deployment id, part of the edge-cache key so every deploy serves fresh responses.
+  "version_metadata": { "binding": "CF_VERSION" },
+  "services": [{ "binding": "SELF", "service": "kucno-kino" }],
+  "triggers": { "crons": ["17 */6 * * *"] },
+  "vars": { "LANGS": "hr,bs,sr,sh,en" }
+  // Secret (wrangler secret put): TMDB_TOKEN = TMDB "API Read Access Token".
+}
