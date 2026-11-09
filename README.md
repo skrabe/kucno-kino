@@ -93,3 +93,9 @@ node scripts/smoke.mjs http://localhost:8787
 input is a list of IMDb ids taken from imdb.com/chart/top and /chart/toptv.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB. Data also comes from Wikidata (CC0).
+
+## Box note: Dolby/DTS audio
+
+The Amlogic AC3/E-AC3/DTS hardware decoders on this box output silence under the GSI. They are commented out in
+`/vendor/etc/media_codecs.xml` (original kept as `media_codecs.xml.orig`), so Stremio's player decodes that
+audio in software (FFmpeg) while video stays hardware-decoded.
